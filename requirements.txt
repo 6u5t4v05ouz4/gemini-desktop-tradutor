@@ -1,0 +1,7 @@
+google-generativeai
+keyboard
+pyperclip
+customtkinter
+packaging
+pystray
+Pillow
