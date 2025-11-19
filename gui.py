@@ -16,6 +16,11 @@ class App(ctk.CTk):
         self.title("Gemini Desktop Translator")
         self.geometry("400x500")
         
+        # Set Window Icon
+        icon_path = os.path.join(os.path.dirname(__file__), "app_icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+        
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         
@@ -94,7 +99,7 @@ class App(ctk.CTk):
         if saved_lang in self.languages:
             self.lang_menu.set(saved_lang)
         else:
-            self.lang_menu.set("English") # Default fallback
+            self.lang_menu.set("English")
             
         self.hotkey_entry.insert(0, config.get("hotkey", "ctrl+shift+x"))
 
@@ -131,7 +136,7 @@ class App(ctk.CTk):
 
     def save_settings(self):
         api_key = self.api_key_entry.get().strip()
-        target_lang = self.lang_menu.get() # Get from dropdown
+        target_lang = self.lang_menu.get()
         hotkey = self.hotkey_entry.get().strip()
         
         config = {
@@ -163,7 +168,13 @@ class App(ctk.CTk):
         if self.start_callback:
             self.start_callback(self.is_running, self.set_status)
             
-    def create_image(self):
+    def get_tray_image(self):
+        # Try to load the custom icon
+        icon_path = os.path.join(os.path.dirname(__file__), "app_icon.png")
+        if os.path.exists(icon_path):
+            return Image.open(icon_path)
+        
+        # Fallback to generated image if file missing
         width = 64
         height = 64
         color1 = "blue"
@@ -176,7 +187,7 @@ class App(ctk.CTk):
 
     def minimize_to_tray(self):
         self.withdraw()
-        image = self.create_image()
+        image = self.get_tray_image()
         menu = (pystray.MenuItem('Show', self.show_window), pystray.MenuItem('Exit', self.quit_app))
         self.tray_icon = pystray.Icon("name", image, "Gemini Translator", menu)
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
