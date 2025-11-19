@@ -45,7 +45,7 @@ class App(ctk.CTk):
         self.api_key_entry.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="ew")
         
         # API Key Link
-        self.link_label = ctk.CTkLabel(self.main_frame, text="Get API Key here", text_color="blue", cursor="hand2")
+        self.link_label = ctk.CTkLabel(self.main_frame, text="Get API Key here", text_color="#3399FF", cursor="hand2")
         self.link_label.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
         self.link_label.bind("<Button-1>", lambda e: webbrowser.open("https://aistudio.google.com/app/apikey"))
         
