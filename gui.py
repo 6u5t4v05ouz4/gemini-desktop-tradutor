@@ -14,7 +14,7 @@ class App(ctk.CTk):
         self.start_callback = start_callback
         
         self.title("Gemini Desktop Translator")
-        self.geometry("400x450")
+        self.geometry("400x500")
         
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -34,15 +34,37 @@ class App(ctk.CTk):
         self.lang_label = ctk.CTkLabel(self.main_frame, text="Target Language:")
         self.lang_label.grid(row=2, column=0, padx=10, pady=(10, 0), sticky="w")
         
-        self.lang_entry = ctk.CTkEntry(self.main_frame, placeholder_text="e.g. Portuguese, English")
-        self.lang_entry.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew")
+        # Top 10+ Languages
+        self.languages = [
+            "English",
+            "Portuguese",
+            "Spanish",
+            "Chinese (Simplified)",
+            "Hindi",
+            "French",
+            "Arabic",
+            "Bengali",
+            "Russian",
+            "Japanese",
+            "German",
+            "Italian"
+        ]
+        
+        self.lang_menu = ctk.CTkOptionMenu(self.main_frame, values=self.languages)
+        self.lang_menu.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew")
 
         # Hotkey
-        self.hotkey_label = ctk.CTkLabel(self.main_frame, text="Hotkey (e.g., ctrl+shift+x):")
+        self.hotkey_label = ctk.CTkLabel(self.main_frame, text="Hotkey:")
         self.hotkey_label.grid(row=4, column=0, padx=10, pady=(10, 0), sticky="w")
         
-        self.hotkey_entry = ctk.CTkEntry(self.main_frame, placeholder_text="ctrl+shift+x")
-        self.hotkey_entry.grid(row=5, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.hotkey_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.hotkey_frame.grid(row=5, column=0, padx=10, pady=(0, 10), sticky="ew")
+        
+        self.hotkey_entry = ctk.CTkEntry(self.hotkey_frame, placeholder_text="Press 'Set' to record")
+        self.hotkey_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        self.set_hotkey_btn = ctk.CTkButton(self.hotkey_frame, text="Set", width=60, command=self.start_recording_hotkey)
+        self.set_hotkey_btn.pack(side="right")
         
         # Save Button
         self.save_btn = ctk.CTkButton(self.main_frame, text="Save Settings", command=self.save_settings)
@@ -58,6 +80,7 @@ class App(ctk.CTk):
         
         self.load_settings()
         self.is_running = False
+        self.is_recording = False
         
         # Handle window closing
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -66,12 +89,49 @@ class App(ctk.CTk):
     def load_settings(self):
         config = config_manager.load_config()
         self.api_key_entry.insert(0, config.get("api_key", ""))
-        self.lang_entry.insert(0, config.get("target_language", ""))
+        
+        saved_lang = config.get("target_language", "English")
+        if saved_lang in self.languages:
+            self.lang_menu.set(saved_lang)
+        else:
+            self.lang_menu.set("English") # Default fallback
+            
         self.hotkey_entry.insert(0, config.get("hotkey", "ctrl+shift+x"))
+
+    def start_recording_hotkey(self):
+        if self.is_recording:
+            return
+            
+        self.is_recording = True
+        self.set_hotkey_btn.configure(text="...", state="disabled")
+        self.hotkey_entry.delete(0, "end")
+        self.hotkey_entry.insert(0, "Press keys...")
+        self.focus()
+        
+        threading.Thread(target=self.record_hotkey_thread, daemon=True).start()
+
+    def record_hotkey_thread(self):
+        try:
+            hotkey = keyboard.read_hotkey(suppress=False)
+            self.after(0, lambda: self.finish_recording(hotkey))
+        except Exception as e:
+            print(f"Error recording: {e}")
+            self.after(0, lambda: self.finish_recording(None))
+
+    def finish_recording(self, hotkey):
+        self.is_recording = False
+        self.set_hotkey_btn.configure(text="Set", state="normal")
+        
+        if hotkey:
+            self.hotkey_entry.delete(0, "end")
+            self.hotkey_entry.insert(0, hotkey)
+        else:
+            self.hotkey_entry.delete(0, "end")
+            self.hotkey_entry.insert(0, "Error")
 
     def save_settings(self):
         api_key = self.api_key_entry.get().strip()
-        target_lang = self.lang_entry.get().strip()
+        target_lang = self.lang_menu.get() # Get from dropdown
         hotkey = self.hotkey_entry.get().strip()
         
         config = {
@@ -104,7 +164,6 @@ class App(ctk.CTk):
             self.start_callback(self.is_running, self.set_status)
             
     def create_image(self):
-        # Generate a simple icon
         width = 64
         height = 64
         color1 = "blue"
@@ -116,15 +175,15 @@ class App(ctk.CTk):
         return image
 
     def minimize_to_tray(self):
-        self.withdraw() # Hide window
+        self.withdraw()
         image = self.create_image()
         menu = (pystray.MenuItem('Show', self.show_window), pystray.MenuItem('Exit', self.quit_app))
         self.tray_icon = pystray.Icon("name", image, "Gemini Translator", menu)
-        self.tray_icon.run()
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
 
     def show_window(self, icon, item):
         self.tray_icon.stop()
-        self.after(0, self.deiconify) # Show window
+        self.after(0, self.deiconify)
 
     def quit_app(self, icon, item):
         self.tray_icon.stop()
@@ -137,12 +196,11 @@ class App(ctk.CTk):
         os._exit(0)
 
     def on_closing(self):
-        # Create a custom dialog
         dialog = ctk.CTkToplevel(self)
         dialog.title("Exit Options")
         dialog.geometry("300x150")
         dialog.resizable(False, False)
-        dialog.transient(self) # Make it modal-like
+        dialog.transient(self)
         dialog.grab_set()
         
         label = ctk.CTkLabel(dialog, text="What would you like to do?")
