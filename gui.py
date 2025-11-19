@@ -5,6 +5,8 @@ import keyboard
 import main
 import sys
 import os
+import webbrowser
+import ctypes
 from PIL import Image, ImageDraw
 import pystray
 
@@ -13,8 +15,15 @@ class App(ctk.CTk):
         super().__init__()
         self.start_callback = start_callback
         
+        # Fix taskbar icon by setting App User Model ID
+        myappid = 'mycompany.myproduct.subproduct.version' # Arbitrary string
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception as e:
+            print(f"Could not set AUMID: {e}")
+
         self.title("Gemini Desktop Translator")
-        self.geometry("400x500")
+        self.geometry("400x550") # Increased height for link
         
         # Set Window Icon
         icon_path = os.path.join(os.path.dirname(__file__), "app_icon.ico")
@@ -33,11 +42,16 @@ class App(ctk.CTk):
         self.api_key_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
         
         self.api_key_entry = ctk.CTkEntry(self.main_frame, show="*")
-        self.api_key_entry.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.api_key_entry.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="ew")
+        
+        # API Key Link
+        self.link_label = ctk.CTkLabel(self.main_frame, text="Get API Key here", text_color="blue", cursor="hand2")
+        self.link_label.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
+        self.link_label.bind("<Button-1>", lambda e: webbrowser.open("https://aistudio.google.com/app/apikey"))
         
         # Target Language
         self.lang_label = ctk.CTkLabel(self.main_frame, text="Target Language:")
-        self.lang_label.grid(row=2, column=0, padx=10, pady=(10, 0), sticky="w")
+        self.lang_label.grid(row=3, column=0, padx=10, pady=(10, 0), sticky="w")
         
         # Top 10+ Languages
         self.languages = [
@@ -56,14 +70,14 @@ class App(ctk.CTk):
         ]
         
         self.lang_menu = ctk.CTkOptionMenu(self.main_frame, values=self.languages)
-        self.lang_menu.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.lang_menu.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
 
         # Hotkey
         self.hotkey_label = ctk.CTkLabel(self.main_frame, text="Hotkey:")
-        self.hotkey_label.grid(row=4, column=0, padx=10, pady=(10, 0), sticky="w")
+        self.hotkey_label.grid(row=5, column=0, padx=10, pady=(10, 0), sticky="w")
         
         self.hotkey_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        self.hotkey_frame.grid(row=5, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.hotkey_frame.grid(row=6, column=0, padx=10, pady=(0, 10), sticky="ew")
         
         self.hotkey_entry = ctk.CTkEntry(self.hotkey_frame, placeholder_text="Press 'Set' to record")
         self.hotkey_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
@@ -73,15 +87,15 @@ class App(ctk.CTk):
         
         # Save Button
         self.save_btn = ctk.CTkButton(self.main_frame, text="Save Settings", command=self.save_settings)
-        self.save_btn.grid(row=6, column=0, padx=10, pady=10)
+        self.save_btn.grid(row=7, column=0, padx=10, pady=10)
         
         # Status
         self.status_label = ctk.CTkLabel(self.main_frame, text="Status: Stopped", text_color="red")
-        self.status_label.grid(row=7, column=0, padx=10, pady=10)
+        self.status_label.grid(row=8, column=0, padx=10, pady=10)
         
         # Start/Stop Listener
         self.listener_btn = ctk.CTkButton(self.main_frame, text="Start Listener", command=self.toggle_listener)
-        self.listener_btn.grid(row=8, column=0, padx=10, pady=10)
+        self.listener_btn.grid(row=9, column=0, padx=10, pady=10)
         
         self.load_settings()
         self.is_running = False
@@ -169,12 +183,10 @@ class App(ctk.CTk):
             self.start_callback(self.is_running, self.set_status)
             
     def get_tray_image(self):
-        # Try to load the custom icon
         icon_path = os.path.join(os.path.dirname(__file__), "app_icon.png")
         if os.path.exists(icon_path):
             return Image.open(icon_path)
         
-        # Fallback to generated image if file missing
         width = 64
         height = 64
         color1 = "blue"
